@@ -1,0 +1,161 @@
+---
+title: "lazy-EDA"
+author: "Ana Diedrichs"
+date: "7/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(DataExplorer)
+library(janitor)
+```
+
+# Initial dataset exploration
+
+## Carga dataset de entrenamiento
+
+```{r}
+dataset <- read_csv("data/Entrenamieto_ECI_2020.csv", 
+     col_types = cols(Account_Created_Date = col_date(format = "%m/%d/%Y"), 
+         Last_Modified_Date = col_date(format = "%m/%d/%Y"), 
+         Opportunity_Created_Date = col_date(format = "%m/%d/%Y"), 
+         Planned_Delivery_End_Date = col_date(format = "%m/%d/%Y"), 
+         Planned_Delivery_Start_Date = col_date(format = "%m/%d/%Y"), 
+         Quote_Expiry_Date = col_date(format = "%m/%d/%Y")))
+```
+
+## Propiedades dataset 
+
+```{r}
+glimpse(dataset)
+```
+
+```{r}
+summary(dataset)
+```
+
+```{r}
+DataExplorer::introduce(dataset)
+```
+
+Variable objetivo o variable de clase. 
+
+Les interesa clasificar entre Closed_Lost y Closed Won. Podríamos eliminar las otras filas
+
+```{r}
+table(dataset$Stage)
+```
+
+## Valores perdidos por variable
+
+Verifico cuáles son las variables que tienen datos perdidos.
+
+```{r}
+DataExplorer::profile_missing(dataset) %>%
+  filter(pct_missing > 0)
+```
+
+Variables 
+
+Diccionario de variables
+
+* ID: id único del registro (Entero).
+* Región: región de la oportunidad (Categórica).
+* Territory: territorio comercial de la oportunidad (Categórica).
+* Pricing, Delivery_Terms_Quote_Approval: variable que denomina si la oportunidad necesita aprobación especial de su precio total y los términos de la entrega (Binaria).
+* Pricing, Delivery_Terms_Approved: variable que denomina si la oportunidad obtuvo aprobación especial de su precio total y los términos de la entrega (Binaria).
+* Bureaucratic_Code_0_Approval: variable que denomina si la oportunidad necesita el código burocrático 0 (Binaria).
+* Bureaucratic_Code_0_Approved: variable que denomina si la oportunidad obtuvo el código burocrático 0 (Binaria).
+* Submitted_for_Approval: variable que denomina si fue entregada la oportunidad para la aprobación (Binaria).
+* Bureaucratic_Code: códigos burocráticos que obtuvo la oportunidad (Categórica).
+* Account_Created_Date: fecha de creación de la cuenta del cliente (Datetime).
+* Source: fuente de creación de la oportunidad (Categórica).
+* Billing_Country: país donde se emite la factura (Categórica).
+* Account_Name: nombre de la cuenta del cliente (Categórica).
+* Opportunity_Name: nombre de la oportunidad (Categórica).
+* Opportunity_ID: id de la oportunidad (Entero).
+* Sales_Contract_No: número de contrato (Entero).
+* Account_Owner: vendedor del equipo comercial responsable de la cuenta cliente (Categórica).
+* Opportunity_Owner: vendedor del equipo comercial responsable de la oportunidad comercial (Categórica).
+* Account_Type: tipo de cuenta cliente (Categórica).
+* Opportunity_Type: tipo de oportunidad (Categórica).
+* Quote_Type: tipo de presupuesto (Categórica).
+* Delivery_Terms: términos de entrega (Categórica).
+* Opportunity_Created_Date: fecha de creación de la oportunidad comercial (Datetime).
+* Brand: marca del producto (Categórica).
+* Product_Type: tipo de producto (Categórica).
+* Size: tamaño del producto (Categórica).
+* Product_Category_B: categoría 'B' del producto (Categórica).
+* Price: precio (Decimal).
+* Currency: moneda (Categórica).
+* Last_Activity: fecha de la última actividad (Datetime).
+* Quote_Expiry_Date: fecha de vencimiento del presupuesto (Datetime).
+* Last_Modified_Date: fecha de ultima modificación en la oportunidad (Datetime).
+* Last_Modified_By: usuario responsable de la última modificación en la oportunidad (Categórica).
+* Product_Family: familia de producto (Categórica).
+* Product_Name: nombre del producto (Categórica).
+* ASP_Currency: moneda del precio promedio (Categórica).
+* ASP: (Average Selling Price) precio promedio a la venta (Decimal).
+* ASP_(converted)_Currency: moneda del precio promedio convertido en la variable (Categórica)
+* ASP_(converted): precio promedio a la venta convertido a otra moneda (Decimal).
+* Planned_Delivery_Start_Date: límite inferior del rango previsto para la fecha de entrega (Datetime).
+* Planned_Delivery_End_Date: límite superior del rango previsto para la fecha de entrega (Datetime).
+* Month: mes-año de Planned_Delivery_Start_Date (Fecha).
+* Delivery_Quarter: trimestre de Planned_Delivery_Start_Date (Categorica).
+* Delivery_Year: año de Planned_Delivery_Start_Date (Fecha).
+* Actual_Delivery_Date: fecha real de la entrega (Datetime).
+* Total_Power: potencia del producto (Entero).
+* Total_Amount_Currency: moneda del monto total (Decimal).
+* Total_Amount: monto total (Decimal).
+* Total_Taxable_Amount_Currency: moneda del monto gravado total (Categórica).
+* Total_Taxable_Amount: monto gravado total (Categórica).
+* Stage: variable target. Estado de la oportunidad (Categórica).
+* Prod_Category_A: categoría 'A' del producto (Categórica).
+* Total_Power_Discreet: categorización de la variable Total Power en bins (Categórica).
+
+```{r}
+table(dataset$`ASP_(converted)`)
+```
+
+
+# Limpieza o selección de variables
+
+
+Analizando la variable de clase u objetivo observamos que hay categorías que por el momento no son de 
+interés precedir.
+
+```{r}
+table(dataset$Stage)
+```
+
+Limpiamos los valores distintos de Closed Win y Closed Lost
+
+```{r}
+dataset <- dataset %>% filter(!(Stage %in% c("Negotiation","Proposal","Qualification")))
+```
+
+
+```{r}
+table(dataset$Stage)
+```
+
+Hay variables que parecen no ser necesarias para el problema. Ej, id de la venta
+
+Otras variables son "repetitivas" o mas bien pueden ser generadas a partir de otras. Por lo tanto hay mucha correlacion entre ellas. Price, total , etc
+
+O una misma variable en distintas unidades, por ejemplo, Total_Power y Total_Power_Discreet.
+
+Esas variables hay que eliminarlas
+
+Aquellas que son categóricas hay que convertirlas a factor, just in case...
+
+## Lazy EDA
+
+Se puede generar un reporte usando DataExplorerer::create_report(dataset)
+##
+
+
+# Variables nuevas creadas
