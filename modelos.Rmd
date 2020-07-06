@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(here)
 ```
 
 # Modelos con dataset 1
@@ -28,8 +29,10 @@ h2o.no_progress()  # Turn off progress bars for notebook readability
 Cargar datos y variable etiqueta como factor
 
 ```{r}
-data <- h2o.importFile(here("data","dataset-limpio-1.csv"))  # 16,883 rows x 28 columns
+data <- h2o.importFile(here("data","train-set-limpio-1.csv"))  # 16,883 rows x 28 columns
 dim(data)
+
+test_data <- h2o.importFile(here("data","test-set-limpio-1.csv"))
 
 ```
 
@@ -57,6 +60,12 @@ glimpse(data)
 h2o.describe(data)
 ```
 
+Chau C1
+
+```{r}
+data$C1 <- NULL
+colnames(data)
+```
 
 #### Split the data
 
@@ -64,12 +73,12 @@ In supervised learning problems, it's common to split the data into several piec
 
 ```{r}
 splits <- h2o.splitFrame(data = data, 
-                         ratios = c(0.7, 0.15),  # partition data into 70%, 15%, 15% chunks
-                         destination_frames = c("train", "valid", "test"), # frame ID (not required)
+                         ratios = c(0.7),  # partition data into 70%, 30% chunks
+                         destination_frames = c("train", "test"), # frame ID (not required)
                          seed = 1)  # setting a seed will guarantee reproducibility
 train <- splits[[1]]
-valid <- splits[[2]]
-test <- splits[[3]]
+test <- splits[[2]]
+
 ```
 
 
@@ -78,7 +87,7 @@ Take a look at the size of each partition. Notice that `h2o.splitFrame()` uses a
 
 ```{r}
 nrow(train)
-nrow(valid)
+#nrow(valid)
 nrow(test)
 ```
 
@@ -99,12 +108,13 @@ print(x)
 #### Run AutoML 
 
 Run AutoML, stopping after 10 models.  The `max_models` argument specifies the number of individual (or "base") models, and does not include the two ensemble models that are trained at the end.
-```{r}
+```{r,message=FALSE,warning=FALSE}
 aml <- h2o.automl(y = y, x = x,
                   training_frame = train,
                   max_models = 5,
                   seed = 1,
                   stopping_metric =  "logloss",
+                  balance_classes = TRUE,
                   sort_metric = "logloss",
                   verbosity = NULL
   
@@ -146,6 +156,16 @@ aml_perf <- h2o.performance(model = aml@leader,
 h2o.logloss(aml_perf)
 ```
 
+
+#### Generate predictions
+
+If you want to generate predictions on a test set that can be done as follows:
+```{r}
+preds <- predict(aml@leader, newdata = test_data)
+head(preds)
+```
+
+This For classification, this gives a three-column frame.  The first column is the predicted class, based on a threshold chosen optimally by H2O.  The predicted values for each each class follows. 
 ## IGNORAR DESDE ACA BAJO
 
 ## GLM
