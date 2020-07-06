@@ -111,7 +111,7 @@ Run AutoML, stopping after 10 models.  The `max_models` argument specifies the n
 ```{r,message=FALSE,warning=FALSE}
 aml <- h2o.automl(y = y, x = x,
                   training_frame = train,
-                  max_models = 5,
+                  max_models = 10,
                   seed = 1,
                   stopping_metric =  "logloss",
                   balance_classes = TRUE,
@@ -127,10 +127,6 @@ aml <- h2o.automl(y = y, x = x,
 The leader model is stored at `aml@leader` and the leaderboard is stored at `aml@leaderboard`.
 ```{r}
 lb <- aml@leaderboard
-```
-
-```{r}
-print(lb)
 ```
 
 
@@ -166,6 +162,46 @@ head(preds)
 ```
 
 This For classification, this gives a three-column frame.  The first column is the predicted class, based on a threshold chosen optimally by H2O.  The predicted values for each each class follows. 
+
+```{r}
+nrow(test_data)
+nrow(preds)
+```
+
+```{r}
+as.data.frame(preds)$Closed.Won
+```
+
+```{r,message=FALSE,warning=FALSE}
+source("funciones.R")
+d <- load_raw_test_data()
+
+```
+
+
+```{r}
+length(d$Opportunity_ID)
+length(as.data.frame(preds)$Closed.Won)
+
+```
+
+```{r}
+ID=d$Opportunity_ID
+
+pred=as.data.frame(preds)$Closed.Won
+
+```
+
+```{r}
+entrega <- data.frame(ID,round(pred,digits = 4),row.names = NULL)
+```
+
+#' por que no es el formato adecuado :-'(
+```{r}
+library(readr)
+write_csv(entrega,path="./data/2020-07-07-version2-10modelos.csv",col_names = FALSE)
+```
+
 ## IGNORAR DESDE ACA BAJO
 
 ## GLM
