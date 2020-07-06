@@ -1,0 +1,154 @@
+---
+title: "modelos"
+author: "Ana Diedrichs"
+date: "7/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Modelos con dataset 1
+
+
+### Start H2O
+
+Load the **h2o** R package and initialize a local H2O cluster.
+
+```{r}
+library("h2o") 
+h2o.init()
+h2o.no_progress()  # Turn off progress bars for notebook readability
+```
+
+
+### Load and prepare data
+
+Cargar datos y variable etiqueta como factor
+
+```{r}
+data <- h2o.importFile(here("data","dataset-limpio-1.csv"))  # 16,883 rows x 28 columns
+dim(data)
+
+```
+
+
+```{r}
+# Optional (to speed up the examples)
+nrows_subset <- nrow(data) # 3000 filas en 3 minutos
+data <- data[1:nrows_subset, ]
+```
+
+#### Convert response to factor
+```{r}
+data$Stage <- as.factor(data$Stage)  #encode the binary repsonse as a factor
+h2o.levels(data$Stage)  #optional: this shows the factor levels
+
+```
+
+```{r}
+glimpse(data)
+```
+
+#### Inspect the data
+
+```{r}
+h2o.describe(data)
+```
+
+
+#### Split the data
+
+In supervised learning problems, it's common to split the data into several pieces.  One piece is used for training the model and one is to be used for testing. In some cases, we may also want to use a seperate holdout set ("validation set") which we use to help the model train.  There are several types of validation strategies used in machine learning (e.g. validation set, cross-validation), and for the purposes of the tutorial, we will use a training set, a validation set and a test set.
+
+```{r}
+splits <- h2o.splitFrame(data = data, 
+                         ratios = c(0.7, 0.15),  # partition data into 70%, 15%, 15% chunks
+                         destination_frames = c("train", "valid", "test"), # frame ID (not required)
+                         seed = 1)  # setting a seed will guarantee reproducibility
+train <- splits[[1]]
+valid <- splits[[2]]
+test <- splits[[3]]
+```
+
+
+
+Take a look at the size of each partition. Notice that `h2o.splitFrame()` uses approximate splitting not exact splitting (for efficiency).  The number of rows are not exactly 70%, 15% and 15%, but they are close enough.  This is one of the many efficiencies that H2O includes so that we can scale to big datasets.  
+
+```{r}
+nrow(train)
+nrow(valid)
+nrow(test)
+```
+
+El nro de filas del valid y test set son distintos, hay un bug en la plataforma.
+
+#### Identify response and predictor columns
+
+In H2O modeling functions, we use the arguments `x` and `y` to designate the names (or indices) of the predictor columns (`x`) and the response column (`y`).
+
+If all of the columns in your dataset except the response column are going to be used as predictors, then you can specify only `y` and ignore the `x` argument.  However, many times we might want to remove certain columns for various reasons (Unique ID column, data leakage, etc.) so that's when `x` is useful.  Either column names and indices can be used to specify columns.
+
+```{r}
+y <- "Stage"
+x <- setdiff(names(data), c(y))  
+print(x)
+```
+
+#### Run AutoML 
+
+Run AutoML, stopping after 10 models.  The `max_models` argument specifies the number of individual (or "base") models, and does not include the two ensemble models that are trained at the end.
+```{r}
+aml <- h2o.automl(y = y, x = x,
+                  training_frame = train,
+                  max_models = 5,
+                  seed = 1,
+                  stopping_metric =  "logloss",
+                  sort_metric = "logloss",
+                  verbosity = NULL
+  
+  )
+```
+
+
+#### aml leader board
+
+The leader model is stored at `aml@leader` and the leaderboard is stored at `aml@leaderboard`.
+```{r}
+lb <- aml@leaderboard
+```
+
+```{r}
+print(lb)
+```
+
+
+Now we will view a snapshot of the top models.  Here we should see the two Stacked Ensembles at or near the top of the leaderboard.  Stacked Ensembles can almost always outperform a single model.
+```{r}
+print(lb)
+```
+
+To view the entire leaderboard, specify the `n` argument of the `print.H2OFrame()` function as the total number of rows:
+```{r}
+print(lb, n = nrow(lb))
+```
+
+
+
+#### Evaluate leader model performance
+
+Although we can use the cross-validation metrics from the leaderboard to estimate the performance of the model, if we want to compare the top AutoML model to the previously trained models, we must score it on the same test set.  
+
+```{r}
+aml_perf <- h2o.performance(model = aml@leader,
+                            newdata = test)
+h2o.logloss(aml_perf)
+```
+
+## IGNORAR DESDE ACA BAJO
+
+## GLM
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
